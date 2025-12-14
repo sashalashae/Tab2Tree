@@ -1,4 +1,4 @@
-# Schema Robustness Evaluation Project (with Real Adult Dataset and Improved Embedding Fix)
+# Schema Robustness Evaluation Project (with Real Adult Dataset)
 
 import pandas as pd
 import numpy as np
@@ -106,20 +106,14 @@ y_pred_mlp_corr = mlp_clf.predict(X_test_mapped_aligned)
 print("Renamed + Mapping XGBoost Accuracy:", accuracy_score(y_test, y_pred_xgb_corr))
 print("Renamed + Mapping MLP Accuracy:", accuracy_score(y_test, y_pred_mlp_corr))
 
-# 13. Embedding-Based Fix (Improved One-to-One Matching)
+# 13. Embedding-Based Fix (Using Sentence-BERT)
+model = SentenceTransformer('all-MiniLM-L6-v2')
 def match_columns_by_embedding(renamed_cols, train_cols):
-    model = SentenceTransformer('all-MiniLM-L6-v2')
     emb_renamed = model.encode(renamed_cols)
     emb_train = model.encode(train_cols)
     sim_matrix = cosine_similarity(emb_renamed, emb_train)
-    mapping = {}
-    used = set()
-    for i, col in enumerate(renamed_cols):
-        sim_matrix[i][list(used)] = -1  # Mask already used matches
-        best = sim_matrix[i].argmax()
-        mapping[col] = train_cols[best]
-        used.add(best)
-    return mapping
+    best_match = sim_matrix.argmax(axis=1)
+    return {renamed_cols[i]: train_cols[best_match[i]] for i in range(len(renamed_cols))}
 
 embedding_map = match_columns_by_embedding(X_test_renamed.columns.tolist(), X_train.columns.tolist())
 X_test_emb_mapped = X_test_renamed.rename(columns=embedding_map)
